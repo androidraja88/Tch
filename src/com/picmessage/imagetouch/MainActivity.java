@@ -5,19 +5,23 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.view.Display;
+import android.view.GestureDetector;
+import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
-import android.view.ViewGroup;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.view.WindowManager;
 import android.widget.AbsoluteLayout;
+
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 
@@ -25,11 +29,11 @@ public class MainActivity extends Activity {
 	private Context m_context;
 	private Bitmap m_bitmap;
 	Button btn_zoom,btn_rotate;
-	ImageView imgview_zoom,imageview_rotate;
+	ImageView imgview_zoom;
 	@SuppressWarnings("deprecation")
 	AbsoluteLayout abs_Rotate_layout;
 	@SuppressWarnings("deprecation")
-	AbsoluteLayout m_absolutelayout,m_absZoomlayout,m_absRotatelayout,m_ImageBorderLayout;
+	AbsoluteLayout m_absolutelayout,m_absZoomlayout,m_ImageBorderLayout;
 	int m_absHeight;
 	
 	@SuppressWarnings("deprecation")
@@ -38,9 +42,30 @@ public class MainActivity extends Activity {
 	private float m_scale, m_oldX = 0, m_oldY = 0, m_dX, m_dY,
 			m_posX, m_posY, m_prevX = 0, m_prevY = 0, m_newX, m_newY;
 	 private float newRot = 0f;
-	private OnTouchListener DragImagr_OnTouchListner,Zoom_OntouchListner,Rotate_OnTouchListner;
+	private OnTouchListener Zoom_OntouchListner;
 	private Display m_screen;
 	private int m_DisplayWidth;
+	
+	
+	
+	
+	//Rotation
+	private static Bitmap  imageScaled;
+	private static Matrix matrix;
+
+	
+	private int dialerHeight, dialerWidth;
+	
+	private GestureDetector detector;
+	
+	// needed for detecting the inversed rotations
+	private boolean[] quadrantTouched;
+
+	private boolean allowRotating;
+	
+	LinearLayout rel_layout;
+	
+	
 	
 	@SuppressWarnings("deprecation")
 	@Override
@@ -63,20 +88,18 @@ public class MainActivity extends Activity {
 		//Dynamic Control
 		m_ImageBorderLayout = new AbsoluteLayout(m_context);
 		m_absZoomlayout = new AbsoluteLayout(m_context);
-		m_absRotatelayout = new AbsoluteLayout(m_context);
+	
 		abs_Rotate_layout = new AbsoluteLayout(m_context);
 		btn_zoom=new Button(m_context);
 		btn_rotate=new Button(m_context);
 		imgview_zoom = new ImageView(m_context);
-		imageview_rotate = new ImageView(m_context);
-		
+	
 
 		//Layout Params
 		Zoom_Layoutparam = new AbsoluteLayout.LayoutParams(40, 40, 80,80);
 		Rotate_Layoutparam = new AbsoluteLayout.LayoutParams(40, 40, 0,80);
 		m_ImageBorderLayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT, AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
 		m_absZoomlayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
-		m_absRotatelayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
 		
 		abs_Rotate_layout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
 				
@@ -107,19 +130,13 @@ public class MainActivity extends Activity {
 		imgview_zoom.setImageBitmap(Bitmap.createScaledBitmap(m_bitmap, 90, 90,true));
 		
 		
-		//
-		imageview_rotate.setLayoutParams(new FrameLayout.LayoutParams(100, 100));
-		imageview_rotate.setImageBitmap(Bitmap.createScaledBitmap(m_bitmap, 90, 90,true));
-		
-		
 	
 		m_absZoomlayout.addView(imgview_zoom);
-		m_absRotatelayout.addView(imageview_rotate);
+	
 		
 		m_ImageBorderLayout.addView(btn_zoom);
 		m_ImageBorderLayout.addView(m_absZoomlayout);
 		m_ImageBorderLayout.addView(btn_rotate);
-		m_ImageBorderLayout.addView(m_absRotatelayout);
 		
 		m_ImageBorderLayout.setDrawingCacheEnabled(true);
 		m_ImageBorderLayout.setClickable(true);
@@ -170,10 +187,10 @@ public class MainActivity extends Activity {
 		float newDist = m_newX - m_oldX;
 		if (m_newX > m_oldX && m_newY > m_oldY) {
 		if (newDist > 0.0f) {
-		m_scale = 1;
+		m_scale = 5;
 		m_absLayout = (AbsoluteLayout) v.getParent();
-		int m_hightOfImage = (int) (m_scale + (((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(1)).getChildAt(0)).getHeight()));
-		int m_widthOfImage = (int) (m_scale + (((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(1)).getChildAt(0)).getWidth()));
+		int m_hightOfImage = (int) (m_scale + (imgview_zoom.getHeight()));
+		int m_widthOfImage = (int) (m_scale + (imgview_zoom.getWidth()));
 		
 		int abs_bottom=m_absLayout.getBottom();
 		
@@ -182,8 +199,7 @@ public class MainActivity extends Activity {
 		int abs_right=m_absLayout.getRight();
 		if (abs_right <= (m_DisplayWidth)) {
 		m_layoutparams = new AbsoluteLayout.LayoutParams(m_widthOfImage, m_hightOfImage, 0, 0);
-		((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(1)).getChildAt(0)).setLayoutParams(m_layoutparams);
-		((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(3)).getChildAt(0)).setLayoutParams(m_layoutparams);
+		imgview_zoom.setLayoutParams(m_layoutparams);
 		
 		
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
@@ -204,16 +220,12 @@ public class MainActivity extends Activity {
 		}
 		if (m_newX < m_oldX && m_newY < m_oldY) {
 		m_absLayout = (AbsoluteLayout) view.getParent();
-		int m_hightOfImage = (int) (((ImageView) ((AbsoluteLayout) m_absLayout
-		.getChildAt(1)).getChildAt(0)).getHeight() - m_scale);
-		int m_widthOfImage = (int) (((ImageView) ((AbsoluteLayout) m_absLayout
-		.getChildAt(1)).getChildAt(0)).getWidth() - m_scale);
+		int m_hightOfImage = (int) (imgview_zoom.getHeight() - m_scale);
+		int m_widthOfImage = (int) (imgview_zoom.getWidth() - m_scale);
 
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
 		m_widthOfImage, m_hightOfImage, 0, 0);
-		((ImageView) ((AbsoluteLayout) m_absLayout
-		.getChildAt(1)).getChildAt(0))
-		.setLayoutParams(m_layoutparams);
+		imgview_zoom.setLayoutParams(m_layoutparams);
 		
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
 		AbsoluteLayout.LayoutParams.WRAP_CONTENT,
@@ -242,7 +254,7 @@ public class MainActivity extends Activity {
 		};
 		
 		
-		DragImagr_OnTouchListner = new OnTouchListener() {
+		new OnTouchListener() {
 			private float d;
 
 			@Override
@@ -292,7 +304,7 @@ public class MainActivity extends Activity {
 		
 		
 		
-		Rotate_OnTouchListner = new OnTouchListener() {
+		new OnTouchListener() {
 			private float d;
 
 			@Override
@@ -341,15 +353,53 @@ public class MainActivity extends Activity {
 		};
 	
 		btn_zoom.setOnTouchListener(Zoom_OntouchListner);
-		m_ImageBorderLayout.setOnTouchListener(DragImagr_OnTouchListner);
+		//m_ImageBorderLayout.setOnTouchListener(DragImagr_OnTouchListner);
 		btn_rotate.setOnTouchListener(new TouchListner());
+		
+	
 		
 	//	btn_rotate.setOnClickListener(new Sample_MyTouchListener());
 		
-		
-		
-		
-		
+        
+        // initialize the matrix only once
+        if (matrix == null) {
+        	matrix = new Matrix();
+        } else {
+        	// not needed, you can also post the matrix immediately to restore the old state
+        	matrix.reset();
+        }
+
+        detector = new GestureDetector(this, new MyGestureDetector());
+        
+        // there is no 0th quadrant, to keep it simple the first value gets ignored
+        quadrantTouched = new boolean[] { false, false, false, false, false };
+        
+        allowRotating = true;
+        
+      	
+    	
+        imgview_zoom.setScaleType(ScaleType.MATRIX);
+        
+       // LinearLayout.LayoutParams lp=new LayoutParams(LinearLayout.LayoutParams.FILL_PARENT,LinearLayout.LayoutParams.FILL_PARENT);
+        
+       // imgview_zoom.setLayoutParams(lp);
+        imgview_zoom.setOnTouchListener(new MyOnTouchListener());
+        imgview_zoom.getViewTreeObserver().addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
+
+        	@Override
+			public void onGlobalLayout() {
+        		// method called more than once, but the values only need to be initialized one time
+        		if (dialerHeight == 0 || dialerWidth == 0) {
+        			dialerHeight = imgview_zoom.getHeight();
+        			dialerWidth = imgview_zoom.getWidth();
+        			
+        			// resize
+					Matrix resize = new Matrix();
+					resize.set(imgview_zoom.getImageMatrix());
+					imgview_zoom.setImageMatrix(matrix);
+        		}
+			}
+		});
 		
 		
 	}
@@ -360,5 +410,151 @@ public class MainActivity extends Activity {
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
+	
 
+	/**
+	 * Rotate the dialer.
+	 * 
+	 * @param degrees The degrees, the dialer should get rotated.
+	 */
+	private void rotateDialer(float degrees) {
+		matrix.postRotate(degrees, dialerWidth / 2, dialerHeight / 2);
+		
+		imgview_zoom.setImageMatrix(matrix);
+	}
+	
+	/**
+	 * @return The angle of the unit circle with the image view's center
+	 */
+	private double getAngle(double xTouch, double yTouch) {
+		double x = xTouch - (dialerWidth / 2d);
+		double y = dialerHeight - yTouch - (dialerHeight / 2d);
+
+		switch (getQuadrant(x, y)) {
+			case 1:
+				return Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI;
+			
+			case 2:
+			case 3:
+				return 180 - (Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI);
+			
+			case 4:
+				return 360 + Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI;
+			
+			default:
+				// ignore, does not happen
+				return 0;
+		}
+	}
+	
+	/**
+	 * @return The selected quadrant.
+	 */
+	private static int getQuadrant(double x, double y) {
+		if (x >= 0) {
+			return y >= 0 ? 1 : 4;
+		} else {
+			return y >= 0 ? 2 : 3;
+		}
+	}
+	
+	/**
+	 * Simple implementation of an {@link OnTouchListener} for registering the dialer's touch events. 
+	 */
+	private class MyOnTouchListener implements OnTouchListener {
+		
+		private double startAngle;
+
+		@Override
+		public boolean onTouch(View v, MotionEvent event) {
+
+			switch (event.getAction()) {
+				
+				case MotionEvent.ACTION_DOWN:
+					
+					// reset the touched quadrants
+					for (int i = 0; i < quadrantTouched.length; i++) {
+						quadrantTouched[i] = false;
+					}
+					
+					allowRotating = false;
+					
+					startAngle = getAngle(event.getX(), event.getY());
+					break;
+					
+				case MotionEvent.ACTION_MOVE:
+					double currentAngle = getAngle(event.getX(), event.getY());
+					rotateDialer((float) (startAngle - currentAngle));
+					startAngle = currentAngle;
+					break;
+					
+				case MotionEvent.ACTION_UP:
+					allowRotating = true;
+					break;
+			}
+			
+			// set the touched quadrant to true
+			quadrantTouched[getQuadrant(event.getX() - (dialerWidth / 2), dialerHeight - event.getY() - (dialerHeight / 2))] = true;
+			
+			detector.onTouchEvent(event);
+			
+			return true;
+		}
+	}
+	
+	/**
+	 * Simple implementation of a {@link SimpleOnGestureListener} for detecting a fling event. 
+	 */
+	private class MyGestureDetector extends SimpleOnGestureListener {
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+			
+			// get the quadrant of the start and the end of the fling
+			int q1 = getQuadrant(e1.getX() - (dialerWidth / 2), dialerHeight - e1.getY() - (dialerHeight / 2));
+			int q2 = getQuadrant(e2.getX() - (dialerWidth / 2), dialerHeight - e2.getY() - (dialerHeight / 2));
+
+			// the inversed rotations
+			if ((q1 == 2 && q2 == 2 && Math.abs(velocityX) < Math.abs(velocityY))
+					|| (q1 == 3 && q2 == 3)
+					|| (q1 == 1 && q2 == 3)
+					|| (q1 == 4 && q2 == 4 && Math.abs(velocityX) > Math.abs(velocityY))
+					|| ((q1 == 2 && q2 == 3) || (q1 == 3 && q2 == 2))
+					|| ((q1 == 3 && q2 == 4) || (q1 == 4 && q2 == 3))
+					|| (q1 == 2 && q2 == 4 && quadrantTouched[3])
+					|| (q1 == 4 && q2 == 2 && quadrantTouched[3])) {
+			
+				imgview_zoom.post(new FlingRunnable(-1 * (velocityX + velocityY)));
+			} else {
+				// the normal rotation
+				imgview_zoom.post(new FlingRunnable(velocityX + velocityY));
+			}
+
+			return true;
+		}
+	}
+	
+	/**
+	 * A {@link Runnable} for animating the the dialer's fling.
+	 */
+	private class FlingRunnable implements Runnable {
+
+		private float velocity;
+
+		public FlingRunnable(float velocity) {
+			this.velocity = velocity;
+		}
+
+		@Override
+		public void run() {
+			if (Math.abs(velocity) > 5 && allowRotating) {
+				rotateDialer(velocity / 75);
+				velocity /= 1.0666F;
+
+				// post this instance again
+				imgview_zoom.post(this);
+			}
+		}
+	}
+	
+	
 }

@@ -1,268 +1,212 @@
 package com.picmessage.imagetouch;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.view.GestureDetector;
+import android.graphics.PointF;
+import android.graphics.drawable.BitmapDrawable;
+import android.util.FloatMath;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.GestureDetector.SimpleOnGestureListener;
-import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.widget.AbsoluteLayout;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 
-@SuppressWarnings("deprecation")
-public class Sample_MyTouchListener implements OnClickListener{
-	private static Bitmap imageOriginal, imageScaled;
-	private static Matrix matrix;
-
-	private ImageView dialer;
-	private int dialerHeight, dialerWidth;
-	
-	private GestureDetector detector;
-	
-	// needed for detecting the inversed rotations
-	private boolean[] quadrantTouched;
-
-	private boolean allowRotating;
-
-	
-	
-	
-	
+public class Sample_MyTouchListener implements OnTouchListener{
 	
 
-	/**
-	 * Rotate the dialer.
-	 * 
-	 * @param degrees The degrees, the dialer should get rotated.
-	 */
-	private void rotateDialer(float degrees) {
-		matrix.postRotate(degrees, dialerWidth / 2, dialerHeight / 2);
-		
-		dialer.setImageMatrix(matrix);
-	}
+
+	    // we can be in one of these 3 states
+	    private static final int NONE = 0;
+	    private static final int DRAG = 1;
+	    private static final int ZOOM = 2;
+	    private int mode = NONE;
+	    // remember some things for zooming
+	    private PointF start = new PointF();
+	    private PointF mid = new PointF();
+	    
+	    private float oldDist = 1f;
+	    private float d = 0f;
+	    private float newRot = 0f;
+	    private float[] lastEvent = null;
 	
-	/**
-	 * @return The angle of the unit circle with the image view's center
-	 */
-	private double getAngle(double xTouch, double yTouch) {
-		double x = xTouch - (dialerWidth / 2d);
-		double y = dialerHeight - yTouch - (dialerHeight / 2d);
-
-		switch (getQuadrant(x, y)) {
-			case 1:
-				return Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI;
-			
-			case 2:
-			case 3:
-				return 180 - (Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI);
-			
-			case 4:
-				return 360 + Math.asin(y / Math.hypot(x, y)) * 180 / Math.PI;
-			
-			default:
-				// ignore, does not happen
-				return 0;
-		}
-	}
 	
-	/**
-	 * @return The selected quadrant.
-	 */
-	private static int getQuadrant(double x, double y) {
-		if (x >= 0) {
-			return y >= 0 ? 1 : 4;
-		} else {
-			return y >= 0 ? 2 : 3;
-		}
-	}
+
+	float prev_angle=0,current_angle=0;
 	
-	/**
-	 * Simple implementation of an {@link OnTouchListener} for registering the dialer's touch events. 
-	 */
-	private class MyOnTouchListener implements OnTouchListener {
-		
-		private double startAngle;
 
-		@Override
-		public boolean onTouch(View v, MotionEvent event) {
+    /**
+     * Determine the space between the first two fingers
+     */
+    private float spacing(MotionEvent event) {
+        float x = event.getX(0) - event.getX(1);
+        float y = event.getY(0) - event.getY(1);
+        return FloatMath.sqrt(x * x + y * y);
+    }
 
-			switch (event.getAction()) {
-				
-				case MotionEvent.ACTION_DOWN:
-					
-					// reset the touched quadrants
-					for (int i = 0; i < quadrantTouched.length; i++) {
-						quadrantTouched[i] = false;
-					}
-					
-					allowRotating = false;
-					
-					startAngle = getAngle(event.getX(), event.getY());
-					break;
-					
-				case MotionEvent.ACTION_MOVE:
-					double currentAngle = getAngle(event.getX(), event.getY());
-					rotateDialer((float) (startAngle - currentAngle));
-					startAngle = currentAngle;
-					break;
-					
-				case MotionEvent.ACTION_UP:
-					allowRotating = true;
-					break;
-			}
-			
-			// set the touched quadrant to true
-			quadrantTouched[getQuadrant(event.getX() - (dialerWidth / 2), dialerHeight - event.getY() - (dialerHeight / 2))] = true;
-			
-			detector.onTouchEvent(event);
-			
-			return true;
-		}
-	}
-	
-	/**
-	 * Simple implementation of a {@link SimpleOnGestureListener} for detecting a fling event. 
-	 */
-	private class MyGestureDetector extends SimpleOnGestureListener {
-		@Override
-		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-			
-			// get the quadrant of the start and the end of the fling
-			int q1 = getQuadrant(e1.getX() - (dialerWidth / 2), dialerHeight - e1.getY() - (dialerHeight / 2));
-			int q2 = getQuadrant(e2.getX() - (dialerWidth / 2), dialerHeight - e2.getY() - (dialerHeight / 2));
+    /**
+     * Calculate the mid point of the first two fingers
+     */
+    private void midPoint(PointF point, MotionEvent event) {
+        float x = event.getX(0) + event.getX(1);
+        float y = event.getY(0) + event.getY(1);
+        point.set(x / 2, y / 2);
+    }
 
-			// the inversed rotations
-			if ((q1 == 2 && q2 == 2 && Math.abs(velocityX) < Math.abs(velocityY))
-					|| (q1 == 3 && q2 == 3)
-					|| (q1 == 1 && q2 == 3)
-					|| (q1 == 4 && q2 == 4 && Math.abs(velocityX) > Math.abs(velocityY))
-					|| ((q1 == 2 && q2 == 3) || (q1 == 3 && q2 == 2))
-					|| ((q1 == 3 && q2 == 4) || (q1 == 4 && q2 == 3))
-					|| (q1 == 2 && q2 == 4 && quadrantTouched[3])
-					|| (q1 == 4 && q2 == 2 && quadrantTouched[3])) {
-			
-				dialer.post(new FlingRunnable(-1 * (velocityX + velocityY)));
-			} else {
-				// the normal rotation
-				dialer.post(new FlingRunnable(velocityX + velocityY));
-			}
-
-			return true;
-		}
-	}
-	
-	/**
-	 * A {@link Runnable} for animating the the dialer's fling.
-	 */
-	private class FlingRunnable implements Runnable {
-
-		private float velocity;
-
-		public FlingRunnable(float velocity) {
-			this.velocity = velocity;
-		}
-
-		@Override
-		public void run() {
-			if (Math.abs(velocity) > 5 && allowRotating) {
-				rotateDialer(velocity / 75);
-				velocity /= 1.0666F;
-
-				// post this instance again
-				dialer.post(this);
-			}
-		}
-	}
-	  AbsoluteLayout main_view ;
-	@Override
-	public void onClick(View v) {
-		// TODO Auto-generated method stub
-		
-		  AbsoluteLayout.LayoutParams params  = (AbsoluteLayout.LayoutParams) v.getLayoutParams();
-		  AbsoluteLayout view  = (AbsoluteLayout) v.getParent();
-		 // ImageView view= (ImageView) ((AbsoluteLayout) frame_lay.getChildAt(1)).getChildAt(0);
-		//  ImageView view_two= (ImageView) ((AbsoluteLayout) frame_lay.getChildAt(3)).getChildAt(0);
-			 
-		  main_view  = (AbsoluteLayout) view.getParent();
-		  
-		   ImageView img_one= (ImageView) ((AbsoluteLayout) view.getChildAt(1)).getChildAt(0);
-		   dialer= (ImageView) ((AbsoluteLayout) view.getChildAt(3)).getChildAt(0);
-		   
-       img_one.buildDrawingCache();
-		// load the image only once
-      if (imageOriginal == null) {
-      	imageOriginal = img_one.getDrawingCache();
-      }
-      
-      // initialize the matrix only once
-      if (matrix == null) {
-      	matrix = new Matrix();
-      } else {
-      	// not needed, you can also post the matrix immediately to restore the old state
-      	matrix.reset();
-      }
-
-      detector = new GestureDetector(new MyGestureDetector());
-      
-      // there is no 0th quadrant, to keep it simple the first value gets ignored
-      quadrantTouched = new boolean[] { false, false, false, false, false };
-      
-      allowRotating = true;
-      
+    /**
+     * Calculate the degree to be rotated by.
+     *
+     * @param event
+     * @return Degrees
+     */
+    private float rotation(MotionEvent event) {
+        double delta_x = (event.getX(0) - event.getX(1));
+        double delta_y = (event.getY(0) - event.getY(1));
+        double radians = Math.atan2(delta_y, delta_x);
+        return (float) Math.toDegrees(radians);
+    }
     
-      dialer.setOnTouchListener(new MyOnTouchListener());
-      dialer.getViewTreeObserver().addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
+   
+    float x=0,y=0;
+    private int r = 0;
+    float scale;
+  
+	@Override
+	public boolean onTouch(View v, MotionEvent event) {
+	
+		  AbsoluteLayout.LayoutParams params  = (AbsoluteLayout.LayoutParams) v.getLayoutParams();
+		  AbsoluteLayout frame_lay  = (AbsoluteLayout) v.getParent();
+		    
+        // handle touch events here
+		  AbsoluteLayout abs_two= (AbsoluteLayout) ((AbsoluteLayout) frame_lay.getChildAt(1)).getChildAt(0);
+        ImageView view = (ImageView)abs_two.getChildAt(2);
 
-      	@Override
-			public void onGlobalLayout() {
-      		// method called more than once, but the values only need to be initialized one time
-      		if (dialerHeight == 0 || dialerWidth == 0) {
-      			dialerHeight = dialer.getHeight();
-      			dialerWidth = dialer.getWidth();
-      			
-      			// resize
-					Matrix resize = new Matrix();
-					resize.postScale((float)Math.min(dialerWidth, dialerHeight) / (float)imageOriginal.getWidth(), (float)Math.min(dialerWidth, dialerHeight) / (float)imageOriginal.getHeight());
-					imageScaled = Bitmap.createBitmap(imageOriginal, 0, 0, imageOriginal.getWidth(), imageOriginal.getHeight(), resize, false);
-					
-					// translate to the image view's center
-					float translateX = dialerWidth / 2 - imageScaled.getWidth() / 2;
-					float translateY = dialerHeight / 2 - imageScaled.getHeight() / 2;
-					matrix.postTranslate(translateX, translateY);
-					
-					dialer.setImageBitmap(imageScaled);
-					dialer.setImageMatrix(matrix);
-      		}
-			}
-		});
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
+       // ((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(1)).getChildAt(0))
+        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+            
+                start.set(event.getX(), event.getY());
+                mode = DRAG;
+                lastEvent = null;
+                break;
+            case MotionEvent.ACTION_POINTER_DOWN:
+            	
+            	
+                 
+                oldDist = spacing(event);
+                if (oldDist > 10f) {
+                  
+                    midPoint(mid, event);
+                    mode = ZOOM;
+                }
+                lastEvent = new float[4];
+                lastEvent[0] = event.getX(0);
+                lastEvent[1] = event.getX(1);
+                lastEvent[2] = event.getY(0);
+                lastEvent[3] = event.getY(1);
+                d = rotation(event);
+                
+            
+                break;
+            case MotionEvent.ACTION_UP:
+            	
+            	 break;
+            case MotionEvent.ACTION_POINTER_UP:
+                mode = NONE;
+                lastEvent = null;
+                break;
+            case MotionEvent.ACTION_MOVE:
+            	r = r + 2;
+                if (mode == DRAG) {
+                	
+                	drag(v, event,view);
+                }
+                
+                else if (mode == ZOOM) 
+                {
+                	
+                    float newDist = spacing(event);
+                    if (newDist > 10f) {
+                    	
+//                        matrix.set(savedMatrix);
+                         scale = (newDist / oldDist);
+                         Zoom(v, event, view);
+//                        matrix.postScale(scale, scale, mid.x, mid.y);
+//                        view.setImageMatrix(matrix);
+//                        params.leftMargin =  (int) mid.x;
+//                        params.topMargin = (int) mid.y;
+//                        v.setLayoutParams(params);
+//                        view.invalidate();
+                         break;
+                    }
+                    if (lastEvent != null && event.getPointerCount() == 3) {
+
+                           rotate(v, event, view);
+                           break;
+                    }
+                }
+                break;
+        }
+        frame_lay.invalidate();
+      //  view.setImageMatrix(matrix);
+        return true;
+    
 	}
 	
+	private void rotate(View v, MotionEvent event,ImageView img) {
+		
+		Matrix matrix = new Matrix();
+	    newRot = rotation(event);
+        float r = newRot - d;
+        float[] values = new float[9];
+        matrix.getValues(values);
+        float tx = values[2];
+        float ty = values[5];
+        float sx = values[0];
+        float xc = (img.getWidth() / 2) * sx;
+        float yc = (img.getHeight() / 2) * sx;
+        matrix.postRotate(r, tx + xc, ty + yc);
+        img.setImageMatrix(matrix);
+        img.setDrawingCacheEnabled(true);
+        img.setDrawingCacheQuality(NONE);
+        img.buildDrawingCache();
+		
+		Bitmap bitmap=img.getDrawingCache();
+		int w = bitmap.getWidth();
+		int h = bitmap.getHeight();
+        
+        
+        
+		Bitmap rotaBitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, matrix,
+				true);
+		BitmapDrawable bdr = new BitmapDrawable(rotaBitmap);
+		img.setImageDrawable(bdr);
+	}
+	
+	private void drag(View v, MotionEvent event,ImageView mMainImg) {
+		FrameLayout.LayoutParams mParams = (FrameLayout.LayoutParams) mMainImg.getLayoutParams();
+		int x = (int) event.getRawX();
+		int y = (int) event.getRawY();
+		mParams.leftMargin = x - 150;
+		mParams.topMargin = y - 210;
+		mMainImg.setLayoutParams(mParams);
+		
+
+	}
+	
+	
+	private void Zoom(View v, MotionEvent event,ImageView img) {
+		img.buildDrawingCache();
+		
+		Bitmap bitmap=img.getDrawingCache();
+		int w = bitmap.getWidth();
+		int h = bitmap.getHeight();
+		Matrix matrix = new Matrix();
+		  matrix.postScale(scale, scale, mid.x, mid.y);
+		Bitmap rotaBitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, matrix,
+				true);
+		BitmapDrawable bdr = new BitmapDrawable(rotaBitmap);
+		img.setImageDrawable(bdr);
+	}
+
 }
