@@ -24,17 +24,21 @@ import android.widget.RelativeLayout.LayoutParams;
 public class MainActivity extends Activity {
 	private Context m_context;
 	private Bitmap m_bitmap;
-	Button btn_zoom;
-	ImageView imgview_zoom;
-	AbsoluteLayout m_absolutelayout,m_absZoomlayout,m_ImageBorderLayout;
+	Button btn_zoom,btn_rotate;
+	ImageView imgview_zoom,imageview_rotate;
+	@SuppressWarnings("deprecation")
+	AbsoluteLayout abs_Rotate_layout;
+	@SuppressWarnings("deprecation")
+	AbsoluteLayout m_absolutelayout,m_absZoomlayout,m_absRotatelayout,m_ImageBorderLayout;
 	int m_absHeight;
 	
-	AbsoluteLayout.LayoutParams Zoom_Layoutparam;
+	@SuppressWarnings("deprecation")
+	AbsoluteLayout.LayoutParams Zoom_Layoutparam,Rotate_Layoutparam;
 	
-	private float m_oldDist = 1f, m_scale, m_oldX = 0, m_oldY = 0, m_dX, m_dY,
+	private float m_scale, m_oldX = 0, m_oldY = 0, m_dX, m_dY,
 			m_posX, m_posY, m_prevX = 0, m_prevY = 0, m_newX, m_newY;
 	 private float newRot = 0f;
-	private OnTouchListener DragImagr_OnTouchListner,Zoom_OntouchListner;
+	private OnTouchListener DragImagr_OnTouchListner,Zoom_OntouchListner,Rotate_OnTouchListner;
 	private Display m_screen;
 	private int m_DisplayWidth;
 	
@@ -59,14 +63,22 @@ public class MainActivity extends Activity {
 		//Dynamic Control
 		m_ImageBorderLayout = new AbsoluteLayout(m_context);
 		m_absZoomlayout = new AbsoluteLayout(m_context);
+		m_absRotatelayout = new AbsoluteLayout(m_context);
+		abs_Rotate_layout = new AbsoluteLayout(m_context);
 		btn_zoom=new Button(m_context);
+		btn_rotate=new Button(m_context);
 		imgview_zoom = new ImageView(m_context);
+		imageview_rotate = new ImageView(m_context);
 		
 
 		//Layout Params
 		Zoom_Layoutparam = new AbsoluteLayout.LayoutParams(40, 40, 80,80);
+		Rotate_Layoutparam = new AbsoluteLayout.LayoutParams(40, 40, 0,80);
 		m_ImageBorderLayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT, AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
 		m_absZoomlayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
+		m_absRotatelayout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
+		
+		abs_Rotate_layout.setLayoutParams(new AbsoluteLayout.LayoutParams(AbsoluteLayout.LayoutParams.WRAP_CONTENT,AbsoluteLayout.LayoutParams.WRAP_CONTENT, 0, 0));
 				
 		RelativeLayout.LayoutParams rl_pr = new LayoutParams(RelativeLayout.LayoutParams.FILL_PARENT,RelativeLayout.LayoutParams.FILL_PARENT);
 		
@@ -84,23 +96,44 @@ public class MainActivity extends Activity {
 		btn_zoom.setId(0);
 		
 		
+		// Border Button Rotate
+		btn_rotate.setLayoutParams(Rotate_Layoutparam);
+		btn_rotate.setBackgroundDrawable(getResources().getDrawable(R.drawable.rotate_ico));
+		btn_rotate.setId(0);
+		
+		
 		//
 		imgview_zoom.setLayoutParams(new FrameLayout.LayoutParams(100, 100));
 		imgview_zoom.setImageBitmap(Bitmap.createScaledBitmap(m_bitmap, 90, 90,true));
 		
 		
+		//
+		imageview_rotate.setLayoutParams(new FrameLayout.LayoutParams(100, 100));
+		imageview_rotate.setImageBitmap(Bitmap.createScaledBitmap(m_bitmap, 90, 90,true));
 		
 		
 	
 		m_absZoomlayout.addView(imgview_zoom);
+		m_absRotatelayout.addView(imageview_rotate);
 		
 		m_ImageBorderLayout.addView(btn_zoom);
 		m_ImageBorderLayout.addView(m_absZoomlayout);
+		m_ImageBorderLayout.addView(btn_rotate);
+		m_ImageBorderLayout.addView(m_absRotatelayout);
+		
 		m_ImageBorderLayout.setDrawingCacheEnabled(true);
 		m_ImageBorderLayout.setClickable(true);
 		m_ImageBorderLayout.setId(0);
 		
-		m_absolutelayout.addView(m_ImageBorderLayout);
+		
+		abs_Rotate_layout.addView(m_ImageBorderLayout);
+		abs_Rotate_layout.setDrawingCacheEnabled(true);
+		abs_Rotate_layout.setClickable(true);
+		abs_Rotate_layout.setId(0);
+		
+		
+		
+		m_absolutelayout.addView(abs_Rotate_layout);
 		m_absHeight = m_absolutelayout.getHeight();
 		
 		
@@ -150,6 +183,8 @@ public class MainActivity extends Activity {
 		if (abs_right <= (m_DisplayWidth)) {
 		m_layoutparams = new AbsoluteLayout.LayoutParams(m_widthOfImage, m_hightOfImage, 0, 0);
 		((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(1)).getChildAt(0)).setLayoutParams(m_layoutparams);
+		((ImageView) ((AbsoluteLayout) m_absLayout.getChildAt(3)).getChildAt(0)).setLayoutParams(m_layoutparams);
+		
 		
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
 		AbsoluteLayout.LayoutParams.WRAP_CONTENT,
@@ -158,6 +193,7 @@ public class MainActivity extends Activity {
 		.getTop());
 		m_absLayout.setLayoutParams(m_layoutparams);
 		((Button) m_absLayout.getChildAt(0)).setLayoutParams(new AbsoluteLayout.LayoutParams(50	,50,m_widthOfImage, m_hightOfImage));
+		((Button) m_absLayout.getChildAt(2)).setLayoutParams(new AbsoluteLayout.LayoutParams(50	,50,0, m_hightOfImage));
 		
 		m_hightOfImage = (int) (m_scale + (((AbsoluteLayout) m_absLayout.getChildAt(1)).getHeight()));
 		m_widthOfImage = (int) (m_scale + (((AbsoluteLayout) m_absLayout.getChildAt(1)).getWidth()));
@@ -222,22 +258,62 @@ public class MainActivity extends Activity {
 					
             case MotionEvent.ACTION_POINTER_DOWN:
 
-                d = rotation(event);
                 break;
 			case MotionEvent.ACTION_MOVE:
 				
 				
-				  if ((event.getPointerCount() == 3)) {
-					  AbsoluteLayout m_absLayout = (AbsoluteLayout) v.getParent();
-					  int m_hightOfImage = (int) (m_scale + ((AbsoluteLayout)  v).getHeight());
-						int m_widthOfImage = (int) (m_scale + ((AbsoluteLayout)  v).getWidth());
-						
-					  
-						ImageView view=(ImageView)m_absLayout.getChildAt(0);
-						 rotate(v, event, view,d);
+				  if ((event.getPointerCount() == 1)) {
 
-                  }else
-                  {
+					m_dX = event.getX() - m_oldX;
+					m_dY = event.getY() - m_oldY;
+					m_posX = m_prevX + m_dX;
+					m_posY = m_prevY + m_dY;
+					if (m_posX > 0
+					&& m_posY > 0
+					&& (m_posX + v.getWidth()) < m_absolutelayout
+					.getWidth()
+					&& (m_posY + v.getHeight()) < m_absolutelayout
+					.getHeight()) {
+					v.setLayoutParams(new AbsoluteLayout.LayoutParams(v
+					.getMeasuredWidth(), v.getMeasuredHeight(),
+					(int) m_posX, (int) m_posY));
+					m_prevX = m_posX;
+					m_prevY = m_posY;
+					}
+					}
+					
+					
+					
+					break;
+			}
+			return false;
+		}
+		};
+		
+		
+		
+		Rotate_OnTouchListner = new OnTouchListener() {
+			private float d;
+
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+			switch (event.getAction() & MotionEvent.ACTION_MASK) {
+			case MotionEvent.ACTION_DOWN:
+					m_oldX = event.getX();
+					m_oldY = event.getY();
+					break;
+			case MotionEvent.ACTION_UP:
+			case MotionEvent.ACTION_POINTER_UP:
+					break;
+					
+            case MotionEvent.ACTION_POINTER_DOWN:
+
+                break;
+			case MotionEvent.ACTION_MOVE:
+				
+				
+				  if ((event.getPointerCount() == 1)) {
+
 					m_dX = event.getX() - m_oldX;
 					m_dY = event.getY() - m_oldY;
 					m_posX = m_prevX + m_dX;
@@ -266,9 +342,9 @@ public class MainActivity extends Activity {
 	
 		btn_zoom.setOnTouchListener(Zoom_OntouchListner);
 		m_ImageBorderLayout.setOnTouchListener(DragImagr_OnTouchListner);
+		btn_rotate.setOnTouchListener(new TouchListner());
 		
-		
-		
+	//	btn_rotate.setOnClickListener(new Sample_MyTouchListener());
 		
 		
 		
@@ -277,40 +353,6 @@ public class MainActivity extends Activity {
 		
 		
 	}
-	private void rotate(View v, MotionEvent event,ImageView img, float d) {
-		
-		Matrix matrix = new Matrix();
-	    newRot = rotation(event);
-        float r = newRot - d;
-        float[] values = new float[9];
-        matrix.getValues(values);
-        float tx = values[2];
-        float ty = values[5];
-        float sx = values[0];
-        float xc = (img.getWidth() / 2) * sx;
-        float yc = (img.getHeight() / 2) * sx;
-        matrix.postRotate(r, tx + xc, ty + yc);
-        img.setImageMatrix(matrix);
-        img.setDrawingCacheEnabled(true);
-        img.buildDrawingCache();
-		
-		Bitmap bitmap=img.getDrawingCache();
-		int w = bitmap.getWidth();
-		int h = bitmap.getHeight();
-        
-        
-        
-		Bitmap rotaBitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, matrix,
-				true);
-		BitmapDrawable bdr = new BitmapDrawable(rotaBitmap);
-		img.setImageDrawable(bdr);
-	}
-    private float rotation(MotionEvent event) {
-        double delta_x = (event.getX(0) - event.getX(1));
-        double delta_y = (event.getY(0) - event.getY(1));
-        double radians = Math.atan2(delta_y, delta_x);
-        return (float) Math.toDegrees(radians);
-    }
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
