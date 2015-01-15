@@ -1,0 +1,67 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity" >
+    
+    
+   	 <FrameLayout
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_above="@+id/linear_footer"
+		>
+		
+   	     <RelativeLayout
+			android:id="@+id/ec_rltabselected"
+			android:layout_width="fill_parent"
+			android:layout_height="fill_parent"
+			android:padding="5dp" >
+			<AbsoluteLayout
+				android:id="@+id/abs_layout"
+				android:layout_width="fill_parent"
+				android:layout_height="fill_parent"
+				android:background="@drawable/commonroundedcornerlayout" >
+					<ImageView
+					android:id="@+id/img_drag"
+					android:layout_width="fill_parent"
+					android:layout_height="match_parent" />
+			</AbsoluteLayout>
+		</RelativeLayout>
+		</FrameLayout>
+		
+   	 
+   	 <LinearLayout
+        android:id="@+id/linear_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="@drawable/btn"
+      
+        android:weightSum="2" >
+
+        <Button
+            android:id="@+id/btn_sticker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+
+            android:layout_weight="1"
+            
+            android:text="Sticker"
+              android:textStyle="bold"
+              android:gravity="center"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btn_export"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+           
+            android:layout_weight="1"
+          
+            android:text="Export  "
+              android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</RelativeLayout>
