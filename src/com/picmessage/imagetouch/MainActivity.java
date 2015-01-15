@@ -217,6 +217,7 @@ public class MainActivity extends Activity {
 		
 		
 		
+		
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
 		AbsoluteLayout.LayoutParams.WRAP_CONTENT,
 		AbsoluteLayout.LayoutParams.WRAP_CONTENT,
