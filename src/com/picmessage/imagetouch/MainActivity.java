@@ -50,7 +50,6 @@ public class MainActivity extends Activity {
 	
 	
 	//Rotation
-	private static Bitmap  imageScaled;
 	private static Matrix matrix;
 
 	
@@ -200,6 +199,22 @@ public class MainActivity extends Activity {
 		if (abs_right <= (m_DisplayWidth)) {
 		m_layoutparams = new AbsoluteLayout.LayoutParams(m_widthOfImage, m_hightOfImage, 0, 0);
 		imgview_zoom.setLayoutParams(m_layoutparams);
+		dialerHeight=m_widthOfImage;
+		dialerWidth=m_hightOfImage;
+		
+		imgview_zoom.setImageBitmap(Bitmap.createScaledBitmap(m_bitmap, dialerWidth, dialerHeight, false));
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		
 		
 		m_layoutparams = new AbsoluteLayout.LayoutParams(
